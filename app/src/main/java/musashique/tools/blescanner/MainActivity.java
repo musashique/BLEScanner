@@ -38,6 +38,7 @@ import android.widget.Toast;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
     private BluetoothAdapter adapter;
@@ -55,7 +56,42 @@ public class MainActivity extends AppCompatActivity {
     private BluetoothDevice device;
 
 
-    HashMap<String, String> devices = new HashMap<>();
+    class BLEDevices {
+        public BLEDevices(String name, String address, String uuid, int rssi) {
+            this.name = name;
+            this.address = address;
+            this.uuid = uuid;
+            this.rssi = rssi;
+            lasttime = System.currentTimeMillis();
+        }
+
+        public void refresh(int rssi) {
+            this.rssi = rssi;
+            lasttime = System.currentTimeMillis();
+        }
+
+        /**
+         * 最終から10秒以上経過
+         * @return
+         */
+        public boolean isExpire() {
+            return lasttime < System.currentTimeMillis()-10*1000;
+        }
+
+        public String toString() {
+            return String.format("Addr=[%s] Name=[%s] UUID=[%s] RSSI=[%d]", address, name, uuid, rssi);
+        }
+
+        public String name;
+        public String address;
+        public String uuid;
+
+        public int rssi;
+
+        public long lasttime;
+    }
+
+    HashMap<String, BLEDevices> devices = new HashMap<>();
 
     protected void requestPermission(String perm) {
         if (shouldShowRequestPermissionRationale(perm)) {
@@ -76,6 +112,48 @@ public class MainActivity extends AppCompatActivity {
         requestPermissions(perm, 0);
     }
 
+    Runnable rescan = new Runnable() {
+        @Override
+        public void run() {
+            restartScan();
+        }
+    };
+
+
+    public void restartScan() {
+        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+//                        return;
+        }
+        scanner.stopScan(scancallback);
+
+        refreshList();
+
+        //  再スキャン開始
+        scanner.startScan(scancallback);
+
+        handler.postDelayed(rescan, SCAN_PERIOD);
+
+    }
+
+    public void refreshList() {
+
+
+
+        TextView textView = findViewById(R.id.DeviceList);
+        StringBuffer sb = new StringBuffer();
+        for (String key : devices.keySet()) {
+            BLEDevices s = devices.get(key);
+            if (s.isExpire()) {
+                devices.remove(s.address);
+                continue;
+            }
+            sb.append(s + "\n");
+        }
+        textView.setText(sb.toString());
+
+    }
+
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -95,71 +173,6 @@ public class MainActivity extends AppCompatActivity {
         requestPermission(Manifest.permission.BLUETOOTH_CONNECT);
         requestPermission(Manifest.permission.BLUETOOTH_ADMIN);
 //        requestPermission(Manifest.permission.BLUETOOTH_SCAN);
-
-
-        /*
-        requestPermission(new String[]{
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.BLUETOOTH,
-//                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.BLUETOOTH_ADMIN,
-                Manifest.permission.BLUETOOTH_SCAN});
-
-        requestPermission(Manifest.permission.ACCESS_COARSE_LOCATION);
-        requestPermission(Manifest.permission.BLUETOOTH);
-        requestPermission(Manifest.permission.BLUETOOTH_CONNECT);
-        requestPermission(Manifest.permission.BLUETOOTH_ADMIN);
-        requestPermission(Manifest.permission.BLUETOOTH_SCAN);
-
-
-        if (shouldShowRequestPermissionRationale(Manifest.permission.BLUETOOTH_SCAN)) {
-            Log.d("shouldShowRequestPermissionRationale", Manifest.permission.BLUETOOTH_SCAN);
-
-        }
-
-        if (checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            Log.d("No Permission", Manifest.permission.BLUETOOTH_SCAN);
-            requestPermissions(new String[]{Manifest.permission.BLUETOOTH_SCAN}, 0);
-//            return;
-        }
-
-        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            Log.d("No Permission", Manifest.permission.BLUETOOTH_SCAN);
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-//            return;
-        }
-
-
-         */
-
-
-/*
-        if (checkSelfPermission(Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.BLUETOOTH}, 0);
-        }
-        if (checkSelfPermission(Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.BLUETOOTH_ADMIN}, 0);
-        }
-        if (checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.BLUETOOTH_CONNECT}, 0);
-        }
-        if (checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.BLUETOOTH_SCAN}, 0);
-        }
-        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 0);
-        }
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 0);
-        }
-
-         */
 
 
         binding = ActivityMainBinding.inflate(getLayoutInflater());
@@ -211,25 +224,9 @@ public class MainActivity extends AppCompatActivity {
             scanner = adapter.getBluetoothLeScanner();
             scancallback = new MyScancallback();
 
-            //スキャニングを10秒後に停止
+            //スキャニングを10秒後に停止し、再スキャン開始
             handler = new Handler();
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-                        // TODO: Consider calling
-                        //    ActivityCompat#requestPermissions
-                        // here to request the missing permissions, and then overriding
-                        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                        //                                          int[] grantResults)
-                        // to handle the case where the user grants the permission. See the documentation
-                        // for ActivityCompat#requestPermissions for more details.
-                        return;
-                    }
-                    scanner.stopScan(scancallback);
-                    finish();
-                }
-            }, SCAN_PERIOD);
+            handler.postDelayed(rescan, SCAN_PERIOD);
 
             ScanSettings scanSettings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).build();
             List<ScanFilter> scanFilters = Arrays.asList(
@@ -293,50 +290,41 @@ public class MainActivity extends AppCompatActivity {
 //                return;
             }
 
-            int rss = result.getRssi();
+            int rssi = result.getRssi();
 
             String address = device.getAddress();
-
-            ScanRecord sr = result.getScanRecord();
-
             ParcelUuid[] UUIDs = device.getUuids();
+            String devuuid = "";
             if (UUIDs != null) {
                 for (ParcelUuid uuid : UUIDs) {
-
+                    devuuid = uuid + " ";
                 }
             }
+
             String name = device.getName();
-            if (name != null) {
-                ScanRecord ssr = result.getScanRecord();
-                List<ParcelUuid> uu = ssr.getServiceUuids();
-                String uuid = "";
-                if (uu != null) {
-                    for (ParcelUuid u : uu) {
-                        uuid = u + " ";
-                    }
+            ScanRecord ssr = result.getScanRecord();
+            String devname = ssr.getDeviceName();
+            if (devname == null) devname = "No Name";
+            List<ParcelUuid> uu = ssr.getServiceUuids();
+            String uuid = "";
+            if (uu != null) {
+                for (ParcelUuid u : uu) {
+                    uuid = u + " ";
                 }
-                Object devname = ssr.getDeviceName();
+            }
 
-                SparseArray<byte[]> ms =  ssr.getManufacturerSpecificData();
-                if (ms != null) {
-                    for (int i=0; i<ms.size(); i++) {
-                        byte[] bb = ms.valueAt(i);
-                        String msd = new String(bb);
-//                        Log.d("msd", msd);
-                    }
+
+            if (!uuid.isEmpty()) {
+                BLEDevices dev;
+                if (devices.containsKey(address)) {
+                    dev = devices.get(address);
+                    dev.refresh(rssi);
+                } else {
+                    dev = new BLEDevices(devname, address, uuid, rssi);
                 }
+                devices.put(address, dev);
 
-
-                String value = String.format("Address=[%s] Device=[%s] UUID=[%s] RSS=[%d]", address, devname, uuid, rss);
-                devices.put(address, value);
-
-                TextView textView = findViewById(R.id.DeviceList);
-                StringBuffer sb = new StringBuffer();
-                for (String s : devices.values()) {
-                    sb.append(s + "\n");
-                }
-                textView.setText(sb.toString());
-
+                refreshList();
 
 //                Log.d("scanResult", result.toString());
             }
@@ -346,6 +334,7 @@ public class MainActivity extends AppCompatActivity {
 
 //            textView.append(result.getDevice().getAddress()+" - "+result.getDevice().getName()+"\n");
         }
+
 
         @Override
         public void onBatchScanResults(List<ScanResult> results) {
