@@ -1,4 +1,4 @@
-package misashique.tools.blescanner;
+package musashique.tools.blescanner.blescanner;
 
 import android.content.Context;
 
@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
     public void useAppContext() {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        assertEquals("moly.tools.blescanner", appContext.getPackageName());
+        assertEquals("musashique.tools.blescanner", appContext.getPackageName());
     }
 }

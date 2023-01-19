@@ -7,9 +7,8 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
-import androidx.navigation.fragment.NavHostFragment;
-import moly.tools.blescanner.R;
-import moly.tools.blescanner.databinding.FragmentFirstBinding;
+import musashique.tools.blescanner.R;
+import musashique.tools.blescanner.databinding.FragmentFirstBinding;
 
 public class FirstFragment extends Fragment {
 

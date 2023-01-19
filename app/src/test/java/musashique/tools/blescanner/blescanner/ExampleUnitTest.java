@@ -1,4 +1,4 @@
-package misashique.tools.blescanner;
+package musashique.tools.blescanner.blescanner;
 
 import org.junit.Test;
 

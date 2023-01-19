@@ -27,8 +27,8 @@ import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
-import moly.tools.blescanner.R;
-import moly.tools.blescanner.databinding.ActivityMainBinding;
+import musashique.tools.blescanner.R;
+import musashique.tools.blescanner.databinding.ActivityMainBinding;
 
 import android.view.Menu;
 import android.view.MenuItem;
@@ -297,28 +297,13 @@ public class MainActivity extends AppCompatActivity {
 
             String address = device.getAddress();
 
-            /*
-            BluetoothGattCallback gattcall = new BluetoothGattCallback() {
-                @Override
-                public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-                    Log.d("onConnectionStateChange", gatt.toString());
-                }
-            };
-            device.connectGatt(MainActivity.this, true, gattcall);
-            */
-
             ScanRecord sr = result.getScanRecord();
-
-            boolean v = device.fetchUuidsWithSdp();
-
-
 
             ParcelUuid[] UUIDs = device.getUuids();
             if (UUIDs != null) {
                 for (ParcelUuid uuid : UUIDs) {
 
                 }
-
             }
             String name = device.getName();
             if (name != null) {
@@ -342,19 +327,15 @@ public class MainActivity extends AppCompatActivity {
                 }
 
 
+                String value = String.format("Address=[%s] Device=[%s] UUID=[%s] RSS=[%d]", address, devname, uuid, rss);
+                devices.put(address, value);
 
-                if (!devices.containsKey(address)) {
-                    devices.put(address, address + " : " + devname + " : " + uuid);
-                    Log.d("device", String.format("%s : %s : %s : %d", address, devname, uuid, rss));
-
-                    TextView textView = findViewById(R.id.DeviceList);
-                    StringBuffer sb = new StringBuffer();
-                    for (String s : devices.values()) {
-                        sb.append(s + "\n");
-                    }
-                    textView.setText(sb.toString());
-
+                TextView textView = findViewById(R.id.DeviceList);
+                StringBuffer sb = new StringBuffer();
+                for (String s : devices.values()) {
+                    sb.append(s + "\n");
                 }
+                textView.setText(sb.toString());
 
 
 //                Log.d("scanResult", result.toString());
